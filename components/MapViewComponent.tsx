@@ -4,7 +4,7 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 
 export default function MapViewComponent() {
-    const [location, setLocation] = useState(null);
+    const [location, setLocation] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -30,7 +30,7 @@ export default function MapViewComponent() {
         <View style={styles.container}>
             <MapView
                 style={styles.map}
-                region={location} // 使用当前位置作为地图中心
+                region={location ?? undefined} // 使用当前位置作为地图中心
                 showsUserLocation={true} // 显示用户位置蓝点
             >
                 {location && (
