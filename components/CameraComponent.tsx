@@ -30,7 +30,7 @@ export default function App() {
                 if (photo) {
                     console.log(photo.uri);
                     const response = await fetch(
-                        'http://10.192.88.251:8000/predict_side_walk/',
+                        'http://10.192.88.88:8000/predict_side_walk/',
                         {
                             method: 'POST',
                             headers: {

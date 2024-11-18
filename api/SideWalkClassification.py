@@ -66,3 +66,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# curl -X POST "http://0.0.0.0:8000/predict_side_walk/" -F "file=@api/image.png"
