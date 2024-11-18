@@ -43,7 +43,7 @@ classes = [
     "Right of Sidewalk",
     "Nothing Detected",
 ]
-model_path = "assets/model/sidewalk_classification_model_vgg16_final.h5"
+model_path = "api/model/sidewalk_classification_model_vgg16_final.h5"
 image_preprocessing_dimens = (100, 100)
 detection_threshold = 0.5
 

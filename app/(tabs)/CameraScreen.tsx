@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, Dimensions } from 'react-native';
 import CameraComponent from '../../components/CameraComponent';
 
 const CameraScreen = () => {
   return (
     <View style={styles.container}>
-      {/* <Text style={styles.title}>Camera Screen</Text> */}
-      <CameraComponent />
+      <CameraComponent style={styles.camera} />
     </View>
   );
 };
@@ -14,13 +13,13 @@ const CameraScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
+  camera: {
+    flex: 1,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
 });
 
