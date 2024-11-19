@@ -1,23 +1,13 @@
 import { StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import MapViewComponent from '@/components/Map/MapViewComponent';
-import HomeScreenBottom from '@/components/Map/ControlPanel/HomeScreenBottom';
-import SearchBar from '@/components/Map/ControlPanel/SearchBar';
-import MapTypeToggle from '@/components/Map/ControlPanel/MapTypeToggle';
+import HomeScreenBottom from '@/components/Map/HomeScreenBottom';
+import MapScreen from '@/components/Map/MapScreen';
 
 export default function TabOneScreen() {
   return (
-    <View style={{ flex: 1 }}>
-      <MapViewComponent />
-      <View style={styles.searchBarContainer}>
-        <SearchBar onSearch={(query) => console.log(query)} />
-      </View>
-      {/* <View style={styles.container}>
-        <MapTypeToggle onToggle={(type) => console.log(type)} />
-      </View> */}
-      <View style={styles.HomeScreenBottomContainer}>
-        <HomeScreenBottom />
-      </View>
+    <View style={styles.container}>
+      <MapScreen />
     </View>
   );
 }

@@ -9,19 +9,15 @@ interface RouteOptionsCardProps {
     onRouteSelected: (coords: Array<{ latitude: number; longitude: number }>) => void;
 }
 
+// const GOOGLE_DIRECTIONS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
 const GOOGLE_DIRECTIONS_API_KEY = 'AIzaSyDVHNdef33SHqTJGKgY-s0qy-X1KNZF46c';
 
-const RouteOptionsCard: React.FC<RouteOptionsCardProps> = ({
-    onClose,
-    origin,
-    destination,
-    onRouteSelected,
-}) => {
+export function RouteOptionsCard({ onClose, origin, destination, onRouteSelected }: RouteOptionsCardProps) {
     const getRoute = async (mode: 'walking' | 'transit') => {
         const originStr = `${origin.latitude},${origin.longitude}`;
         const destinationStr = `${destination.latitude},${destination.longitude}`;
         const response = await axios.get(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=${mode}&key=${GOOGLE_DIRECTIONS_API_KEY}&language=zh`
+            `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=${mode}&key=${GOOGLE_DIRECTIONS_API_KEY}`
         );
 
         if (response.data.routes.length) {
@@ -29,11 +25,10 @@ const RouteOptionsCard: React.FC<RouteOptionsCardProps> = ({
             const coords = decodePolyline(points);
             onRouteSelected(coords);
         } else {
-            console.log('未找到路线');
+            console.log('No route found');
         }
     };
 
-    // 解码Polyline
     const decodePolyline = (t: string) => {
         let points = [];
         let index = 0,
@@ -73,16 +68,16 @@ const RouteOptionsCard: React.FC<RouteOptionsCardProps> = ({
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Text style={{ fontSize: 18 }}>×</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>选择路线方式</Text>
+            <Text style={styles.title}>Select Route Type</Text>
             <TouchableOpacity style={styles.optionButton} onPress={() => getRoute('walking')}>
-                <Text>步行路线</Text>
+                <Text>Walking Route</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.optionButton} onPress={() => getRoute('transit')}>
-                <Text>公共交通路线</Text>
+                <Text>Public Transit Route</Text>
             </TouchableOpacity>
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     card: {
