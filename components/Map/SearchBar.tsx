@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
     View,
     TextInput,
@@ -7,26 +7,27 @@ import {
     TouchableOpacity,
     StyleSheet,
     ActivityIndicator,
+    Keyboard,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import axios from "axios";
 import debounce from "lodash/debounce";
 import * as Location from "expo-location";
-import { GOOGLE_PLACES_API_KEY } from "@env";
-
 
 interface SearchBarProps {
-    onSelectDestination: (place: { placeId: string; description: string }) => void;
+    onSelectDestination: (place: { placeId: string; description: string } | null) => void;
 }
 
-const GOOGLE_PLACES_API_KEY = "test";
+const GOOGLE_PLACES_API_KEY = "AIzaSyCJ50N--3-fHY0bkIMwrE0hIXYP8qNq2wE";
 
 export function SearchBar({ onSelectDestination }: SearchBarProps) {
     const [query, setQuery] = useState<string>("");
     const [suggestions, setSuggestions] = useState<Array<any>>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [isFocused, setIsFocused] = useState<boolean>(false);
+    const inputRef = useRef<TextInput>(null);
 
-    // 获取当前位置
     const fetchCurrentLocation = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -49,7 +50,6 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
         fetchCurrentLocation();
     }, []);
 
-    // 调用 Google Places Autocomplete API
     const fetchSuggestions = async (input: string) => {
         if (!input || !currentLocation) {
             setSuggestions([]);
@@ -69,7 +69,7 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
                                 latitude: currentLocation.latitude,
                                 longitude: currentLocation.longitude,
                             },
-                            radius: 5000, // 半径 5 公里
+                            radius: 5000,
                         },
                     },
                 },
@@ -89,20 +89,57 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
         }
     };
 
-    // 使用 debounce 降低 API 请求频率
     const debouncedFetchSuggestions = useCallback(debounce(fetchSuggestions, 300), [currentLocation]);
+
+    const handleFocus = () => {
+        setIsFocused(true);
+    };
+
+    const handleBlur = () => {
+        setIsFocused(false);
+        Keyboard.dismiss(); // 收起键盘
+    };
+
+    const clearAll = () => {
+        setQuery("");
+        setSuggestions([]);
+        onSelectDestination(null); // 回调清除状态到初始状态
+    };
 
     return (
         <View style={styles.container}>
-            <TextInput
-                style={styles.input}
-                placeholder="Search for a place"
-                value={query}
-                onChangeText={(text) => {
-                    setQuery(text);
-                    debouncedFetchSuggestions(text);
-                }}
-            />
+            <View style={styles.inputContainer}>
+                <TouchableOpacity onPress={isFocused ? handleBlur : undefined}>
+                    <FontAwesome
+                        name={isFocused ? "arrow-left" : "search"}
+                        size={20}
+                        color="gray"
+                        style={styles.icon}
+                    />
+                </TouchableOpacity>
+                <TextInput
+                    ref={inputRef}
+                    style={styles.input}
+                    placeholder="Search for a place"
+                    value={query}
+                    onFocus={handleFocus}
+                    onChangeText={(text) => {
+                        setQuery(text);
+                        debouncedFetchSuggestions(text);
+                    }}
+                    returnKeyType="search"
+                    onSubmitEditing={() => {
+                        fetchSuggestions(query);
+                        Keyboard.dismiss();
+                    }}
+                />
+                {/* 清除按钮仅在聚焦且有输入时显示 */}
+                {isFocused && query.length > 0 && (
+                    <TouchableOpacity onPress={clearAll}>
+                        <FontAwesome name="times-circle" size={20} color="gray" style={styles.clearIcon} />
+                    </TouchableOpacity>
+                )}
+            </View>
 
             {loading && (
                 <View style={styles.loadingContainer}>
@@ -126,8 +163,9 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
                                     placeId: item.placePrediction?.placeId || "",
                                     description: description,
                                 });
-                                setQuery(description); // 更新输入框内容
-                                setSuggestions([]); // 清空建议列表
+                                setQuery(description);
+                                setSuggestions([]);
+                                setIsFocused(false); // 选择后隐藏返回图标
                             }}
                         >
                             <Text>{description}</Text>
@@ -147,13 +185,25 @@ const styles = StyleSheet.create({
         alignSelf: "center",
         zIndex: 1,
     },
-    input: {
+    inputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
         backgroundColor: "white",
-        padding: 10,
+        paddingHorizontal: 10,
         borderRadius: 15,
         marginBottom: 5,
-        fontSize: 16,
         elevation: 2,
+    },
+    icon: {
+        marginRight: 8,
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 10,
+        fontSize: 16,
+    },
+    clearIcon: {
+        marginLeft: 8,
     },
     suggestionItem: {
         padding: 10,

@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import MapViewComponent from '@/components/Map/MapViewComponent';
-import HomeScreenBottom from '@/components/Map/HomeScreenBottom';
 import MapScreen from '@/components/Map/MapScreen';
 
 export default function TabOneScreen() {
