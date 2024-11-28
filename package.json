@@ -16,6 +16,7 @@
     "@appandflow/react-native-google-autocomplete": "^2.0.1",
     "@expo/vector-icons": "^14.0.3",
     "@googlemaps/js-api-loader": "^1.16.8",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/native": "^6.0.2",
     "@tamagui/babel-plugin": "^1.116.14",
     "@tamagui/config": "^1.116.14",

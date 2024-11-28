@@ -7,6 +7,19 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+from mqtt.mqtt_manager import LEFT_TOPIC, RIGHT_TOPIC, mqtt_manager
+
+MESSAGE_CONFIG = {
+    "Detour to the left.": {
+        "message": {"freq": 30, "duty": 50, "duration": 1000},
+        "topic": LEFT_TOPIC
+    },
+    "Detour to the right.": {
+        "message": {"freq": 30, "duty": 50, "duration": 1000},
+        "topic": RIGHT_TOPIC
+    },
+}
+
 @dataclass
 class Detection:
     class_name: str
@@ -71,13 +84,16 @@ class ObjectDetector:
                     class_name=class_name, confidence=conf, bbox=[x1, y1, x2, y2]
                 )
                 is_obstacle = detection.is_obstacle(image.shape[1], image.shape[0])
+                avoidance_direction = detection.get_avoidance_direction(image.shape[1]) if is_obstacle else "None"
+                if avoidance_direction != "None":
+                    mqtt_manager.publish_message(MESSAGE_CONFIG[avoidance_direction]["message"], MESSAGE_CONFIG[avoidance_direction]["topic"])
                 detection_results.append(
                     {
                         "class": detection.class_name,
                         "confidence": float(detection.confidence),
                         "bbox": detection.bbox,
                         "is_obstacle": is_obstacle,
-                        "avoidance_direction": detection.get_avoidance_direction(image.shape[1]) if is_obstacle else "None"
+                        "avoidance_direction": avoidance_direction
                     }
                 )
 

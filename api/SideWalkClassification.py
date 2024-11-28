@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import tensorflow as tf
-
+from mqtt.mqtt_manager import mqtt_manager, LEFT_TOPIC, RIGHT_TOPIC
 
 class SideWalkClassification:
     def __init__(
@@ -36,7 +36,6 @@ import numpy as np
 
 app = FastAPI()
 
-# 确保使用的是已经加载好的模型路径和类别
 classes = [
     "Left of Sidewalk",
     "Middle of Sidewalk",
@@ -47,11 +46,20 @@ model_path = "api/model/sidewalk_classification_model_vgg16_final.h5"
 image_preprocessing_dimens = (100, 100)
 detection_threshold = 0.5
 
-# 创建分类器实例
 classifier = SideWalkClassification(
     model_path, classes, image_preprocessing_dimens, detection_threshold
 )
 
+MESSAGE_CONFIG = {
+    "Left of Sidewalk": {
+        "message": {"freq": 10, "duty": 20, "duration": 1000},
+        "topic": LEFT_TOPIC
+    },
+    "Right of Sidewalk": {
+        "message": {"freq": 10, "duty": 20, "duration": 1000},
+        "topic": RIGHT_TOPIC
+    },
+}
 
 @app.post("/predict_side_walk/")
 async def predict(file: UploadFile = File(...)):
@@ -59,8 +67,10 @@ async def predict(file: UploadFile = File(...)):
     image = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
     result = classifier.predict(image)
-    return JSONResponse(content={"result": result})
+    if result == "Left of Sidewalk" or result == "Right of Sidewalk":
+        mqtt_manager.publish_message(MESSAGE_CONFIG[result]["message"], MESSAGE_CONFIG[result]["topic"])
 
+    return JSONResponse(content={"result": result})
 
 if __name__ == "__main__":
     import uvicorn
@@ -68,3 +78,4 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # curl -X POST "http://0.0.0.0:8000/predict_side_walk/" -F "file=@api/image.png"
+# curl -X POST "http://localhost:8000/predict_side_walk/" -F "file=@api/image.png"

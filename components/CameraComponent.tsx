@@ -2,13 +2,20 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { useNetInfo } from "@react-native-community/netinfo";
 
 export default function App() {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const cameraRef = useRef<CameraView | null>(null);
     const [result, setResult] = useState<string | null>(null);
-
+    const [ipAddress, setIpAddress] = useState<string | null>(null);
+    // const netInfo = useNetInfo();
+    // if (netInfo.isConnected) {
+    //     if (netInfo.type === 'wifi' && netInfo.details && 'ipAddress' in netInfo.details) {
+    //         setIpAddress(netInfo.details.ipAddress);
+    //     }
+    // }
     const createFormData = (photo: { uri: string }) => {
         const data = new FormData();
         data.append('file', {
@@ -30,7 +37,9 @@ export default function App() {
                 if (photo) {
                     console.log(photo.uri);
                     const response = await fetch(
-                        'http://10.192.88.88:8000/predict_side_walk/',
+                        // `http://${ipAddress}:8000/predict_side_walk/`,
+                        // 'http://localhost:8000/predict_side_walk/',
+                        'http://10.192.94.190:8000/predict_side_walk/',
                         {
                             method: 'POST',
                             headers: {
@@ -62,7 +71,7 @@ export default function App() {
     useEffect(() => {
         const interval = setInterval(() => {
             takePicture();
-        }, 2 * 1000);
+        }, 4 * 1000);
         return () => clearInterval(interval);
     }, []);
 
