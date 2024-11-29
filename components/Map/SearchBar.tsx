@@ -89,7 +89,7 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
         }
     };
 
-    const debouncedFetchSuggestions = useCallback(debounce(fetchSuggestions, 300), [currentLocation]);
+    const debouncedFetchSuggestions = useCallback(debounce(fetchSuggestions, 500), [currentLocation]);
 
     const handleFocus = () => {
         setIsFocused(true);

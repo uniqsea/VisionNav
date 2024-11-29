@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import axios from 'axios';
 import { GOOGLE_DIRECTIONS_API_KEY } from '@env';
 import polyline from 'polyline';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 interface RouteOptionsCardProps {
     onClose: () => void;
     origin: { latitude: number; longitude: number };
     destination: { latitude: number; longitude: number };
     onRouteSelected: (coords: Array<{ latitude: number; longitude: number }>) => void;
-    onMoveCamera: (coords: { latitude: number; longitude: number }) => void; // 视角移动
-    onStartNavigation: (steps: Array<any>) => void; // 新增：开始导航时传递所有步骤
+    onMoveCamera: (coords: { latitude: number; longitude: number }) => void;
+    onStartNavigation: (steps: Array<any>) => void;
 }
 
 export function RouteOptionsCard({
@@ -21,65 +23,92 @@ export function RouteOptionsCard({
     onMoveCamera,
     onStartNavigation,
 }: RouteOptionsCardProps) {
-    const [routeSteps, setRouteSteps] = useState<
-        Array<{ instruction: string; distance: string; duration: string }>
-    >([]);
+    const [routeData, setRouteData] = useState<{
+        coords: Array<{ latitude: number; longitude: number }>;
+        steps: Array<any>;
+    } | null>(null);
 
-    const getRoute = async (mode: 'walking', showSteps: boolean = false) => {
+    const [isRouteVisible, setIsRouteVisible] = useState(false);
+    const [isStepsVisible, setIsStepsVisible] = useState(false);
+
+    const fetchRoute = async () => {
         const originStr = `${origin.latitude},${origin.longitude}`;
         const destinationStr = `${destination.latitude},${destination.longitude}`;
 
         try {
+            console.log('Start Fetching...');
             const response = await axios.get(
-                `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=${mode}&key=${GOOGLE_DIRECTIONS_API_KEY}`
+                `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=walking&key=${GOOGLE_DIRECTIONS_API_KEY}`
             );
-
+            console.log('Fetching...');
             if (response.data.routes.length) {
                 const route = response.data.routes[0];
                 const points = route.overview_polyline.points;
-                // 使用 polyline.decode() 解码
                 const coords = polyline.decode(points).map(([lat, lng]) => ({
                     latitude: lat,
                     longitude: lng,
                 }));
-                onRouteSelected(coords);
 
-                // 如果需要显示文字版路线
-                if (showSteps) {
-                    const steps = route.legs[0].steps.map((step: any) => ({
-                        instruction: step.html_instructions, // HTML 格式的文字说明
-                        distance: step.distance.text, // 距离
-                        duration: step.duration.text, // 时间
-                        start_location: step.start_location, // 起点坐标
-                        end_location: step.end_location, // 终点坐标
-                        polyline: step.polyline.points, // Step路线坐标
-                        maneuver: step.maneuver || null, // 转弯方向
-                    }));
-                    setRouteSteps(steps); // 保存步骤数据
-                } else {
-                    setRouteSteps([]); // 清除之前的文字版步骤
-                }
+                const steps = route.legs[0].steps.map((step: any) => ({
+                    instruction: step.html_instructions,
+                    distance: step.distance.text,
+                    duration: step.duration.text,
+                    start_location: step.start_location,
+                    end_location: step.end_location,
+                    polyline: step.polyline.points,
+                    maneuver: step.maneuver || null,
+                }));
+
+                console.log('Fetched route steps:', steps);
+                const fetchedRouteData = { coords, steps };
+                setRouteData(fetchedRouteData); // 更新状态
+                return fetchedRouteData; // 返回数据
             } else {
-                console.log('No route found');
+                Alert.alert('提示', '未找到路线，请重试');
+                return null;
             }
         } catch (error) {
             console.error('Error fetching route:', error);
+            Alert.alert('错误', '获取路线时发生错误，请检查网络连接');
+            return null;
+        }
+        return null;
+    };
+
+    const handleRouteToggle = async () => {
+        let fetchedRouteData = routeData;
+        if (fetchedRouteData) {
+            setIsRouteVisible(!isRouteVisible);
+            onRouteSelected(isRouteVisible || !fetchedRouteData ? [] : fetchedRouteData.coords);
+        } else {
+            fetchedRouteData = await fetchRoute();
+            setIsRouteVisible(true);
+            onRouteSelected(isRouteVisible || !fetchedRouteData ? [] : fetchedRouteData.coords);
+        }
+    };
+
+    const handleStepsToggle = async () => {
+        let fetchedRouteData = routeData;
+        if (fetchedRouteData) {
+            setIsStepsVisible(!isStepsVisible);
+        } else {
+            fetchedRouteData = await fetchRoute();
+            setIsStepsVisible(true);
         }
     };
 
     return (
         <>
-            {/* 步骤说明卡片 */}
-            {routeSteps.length > 0 && (
+            {isStepsVisible && routeData && (
                 <View style={styles.stepsCard}>
                     <ScrollView style={styles.stepsContainer}>
-                        {routeSteps.map((step, index) => (
+                        {routeData.steps.map((step, index) => (
                             <View key={index} style={styles.step}>
                                 <Text style={styles.stepText}>
                                     {step.instruction.replace(/<[^>]*>?/gm, '')}
                                 </Text>
                                 <Text style={styles.stepSubText}>
-                                    Distance: {step.distance}, Time: {step.duration}
+                                    距离: {step.distance}, 时间: {step.duration}
                                 </Text>
                             </View>
                         ))}
@@ -87,32 +116,52 @@ export function RouteOptionsCard({
                 </View>
             )}
 
-            {/* 选项卡 */}
             <View style={styles.container}>
                 <TouchableOpacity
                     style={styles.goButton}
-                    onPress={() => {
-                        getRoute('walking', false); // 获取路线
-                        onMoveCamera(origin); // 移动视角到当前位置
-                        onStartNavigation(routeSteps); // 开始导航，传递步骤
-                        onClose(); // 关闭卡片
+                    onPress={async () => {
+                        setIsRouteVisible(true);
+                        let fetchedRouteData = routeData;
+                        if (!routeData) {
+                            console.log('1Fetching route...');
+                            fetchedRouteData = await fetchRoute();
+                            console.log('2Route fetched:', fetchedRouteData);
+                        }
+                        onMoveCamera(origin);
+                        onStartNavigation(fetchedRouteData?.steps || []);
+                        console.log('Route steps for navigation:', fetchedRouteData?.steps);
+                        onClose();
                     }}
                 >
-                    <Text style={styles.goButtonText}>GO</Text>
+                    <FontAwesome5 name="walking" size={30} color="white" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.directionButton}
-                    onPress={() => getRoute('walking', false)} // 仅规划路线
+                    style={[
+                        styles.directionButton,
+                        isRouteVisible && styles.activeButton,
+                    ]}
+                    onPress={handleRouteToggle}
                 >
-                    <Text style={styles.directionButtonText}>Direction</Text>
+                    <FontAwesome6
+                        name="arrows-turn-right"
+                        size={24}
+                        color={isRouteVisible ? 'white' : 'black'}
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.stepsButton}
-                    onPress={() => getRoute('walking', true)} // 展示步骤说明
+                    style={[
+                        styles.stepsButton,
+                        isStepsVisible && styles.activeButton,
+                    ]}
+                    onPress={handleStepsToggle}
                 >
-                    <Text style={styles.stepsButtonText}>Steps</Text>
+                    <FontAwesome5
+                        name="route"
+                        size={24}
+                        color={isStepsVisible ? 'white' : 'black'}
+                    />
                 </TouchableOpacity>
             </View>
         </>
@@ -139,7 +188,7 @@ const styles = StyleSheet.create({
     },
     stepsCard: {
         position: 'absolute',
-        bottom: 120, // 放置在主卡片上方
+        bottom: 120,
         left: 10,
         right: 10,
         backgroundColor: 'white',
@@ -156,30 +205,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginRight: 10,
     },
-    goButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
     directionButton: {
         paddingVertical: 10,
         paddingHorizontal: 20,
         backgroundColor: 'gray',
         borderRadius: 5,
         marginRight: 10,
-    },
-    directionButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     stepsButton: {
         paddingVertical: 10,
         paddingHorizontal: 20,
         backgroundColor: 'green',
         borderRadius: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    stepsButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
+    activeButton: {
+        backgroundColor: 'orange',
     },
     stepsContainer: {
         maxHeight: 200,

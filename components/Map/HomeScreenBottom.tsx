@@ -9,21 +9,18 @@ interface HomeScreenBottomProps {
 
 export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
     const [locationName, setLocationName] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchLocationName = async () => {
             if (!locationCoords) {
                 setLocationName(null);
-                setIsLoading(false);
                 return;
             }
 
             try {
                 setIsLoading(true);
-                setError(null);
-
                 const response = await axios.get(
                     `https://maps.googleapis.com/maps/api/geocode/json`,
                     {
@@ -33,18 +30,15 @@ export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
                         },
                     }
                 );
-
                 const results = response.data.results;
                 if (results && results.length > 0) {
                     setLocationName(results[0].formatted_address);
                 } else {
-                    setLocationName(null);
-                    setError('Location name not found.');
+                    setLocationName('Unknown Location');
                 }
             } catch (err) {
                 console.error('Error fetching location:', err);
-                setError('Failed to fetch location details.');
-                setLocationName(null);
+                setError('Failed to fetch location name.');
             } finally {
                 setIsLoading(false);
             }
@@ -55,20 +49,17 @@ export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Current Location</Text>
+            <Text style={styles.title}>Your Location</Text>
             {isLoading ? (
                 <ActivityIndicator size="small" color="#007BFF" />
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
             ) : (
-                <Text style={styles.text}>{locationName}</Text>
+                <Text style={styles.text}>{locationName || 'Loading...'}</Text>
             )}
-            <View style={styles.buttonContainer}>
-                {/* Additional buttons or features can be added here */}
-            </View>
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
@@ -100,12 +91,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'red',
         textAlign: 'center',
-    },
-    buttonContainer: {
-        marginTop: 15,
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'space-around',
     },
 });
 
