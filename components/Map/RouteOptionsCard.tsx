@@ -13,6 +13,7 @@ interface RouteOptionsCardProps {
     onRouteSelected: (coords: Array<{ latitude: number; longitude: number }>) => void;
     onMoveCamera: (coords: { latitude: number; longitude: number }) => void;
     onStartNavigation: (steps: Array<any>) => void;
+    onExitNavigation: () => void; // New prop to exit navigation
 }
 
 export function RouteOptionsCard({
@@ -22,6 +23,7 @@ export function RouteOptionsCard({
     onRouteSelected,
     onMoveCamera,
     onStartNavigation,
+    onExitNavigation,
 }: RouteOptionsCardProps) {
     const [routeData, setRouteData] = useState<{
         coords: Array<{ latitude: number; longitude: number }>;
@@ -30,6 +32,7 @@ export function RouteOptionsCard({
 
     const [isRouteVisible, setIsRouteVisible] = useState(false);
     const [isStepsVisible, setIsStepsVisible] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false); // Track navigation state
 
     const fetchRoute = async () => {
         const originStr = `${origin.latitude},${origin.longitude}`;
@@ -44,10 +47,13 @@ export function RouteOptionsCard({
             if (response.data.routes.length) {
                 const route = response.data.routes[0];
                 const points = route.overview_polyline.points;
-                const coords = polyline.decode(points).map(([lat, lng]) => ({
-                    latitude: lat,
-                    longitude: lng,
-                }));
+                const coords = polyline.decode(points).map((value: number[]) => {
+                    const [lat, lng] = value;
+                    return {
+                        latitude: lat,
+                        longitude: lng,
+                    };
+                });
 
                 const steps = route.legs[0].steps.map((step: any) => ({
                     instruction: step.html_instructions,
@@ -59,20 +65,20 @@ export function RouteOptionsCard({
                     maneuver: step.maneuver || null,
                 }));
 
-                console.log('Fetched route steps:', steps);
+                console.log('Routeinfo and stepsinfo fetched:', steps);
                 const fetchedRouteData = { coords, steps };
                 setRouteData(fetchedRouteData); // 更新状态
+
                 return fetchedRouteData; // 返回数据
             } else {
-                Alert.alert('提示', '未找到路线，请重试');
+                Alert.alert('No route found', 'Please try again.');
                 return null;
             }
         } catch (error) {
             console.error('Error fetching route:', error);
-            Alert.alert('错误', '获取路线时发生错误，请检查网络连接');
+            Alert.alert('Error', 'Failed to fetch route. Please check your connection.');
             return null;
         }
-        return null;
     };
 
     const handleRouteToggle = async () => {
@@ -97,6 +103,28 @@ export function RouteOptionsCard({
         }
     };
 
+    const handleGoButtonPress = async () => {
+        let fetchedRouteData = routeData;
+        if (!fetchedRouteData) {
+            // console.log('1Fetching route...');
+            fetchedRouteData = await fetchRoute();
+            console.log('Go button pressed and Route fetched:', fetchedRouteData);
+        }
+        setIsRouteVisible(true);
+        onRouteSelected(fetchedRouteData?.coords || []);    //choose route and show it
+
+        onMoveCamera(origin);
+        onStartNavigation(fetchedRouteData?.steps || []);
+        setIsNavigating(true); // Start navigation
+        console.log('Navigation is on...');
+    };
+
+    const handleExitNavigation = () => {
+        setIsNavigating(false); // Stop navigation
+        onExitNavigation(); // Notify parent to stop navigation
+        onClose(); // Close the card
+    };
+
     return (
         <>
             {isStepsVisible && routeData && (
@@ -108,7 +136,7 @@ export function RouteOptionsCard({
                                     {step.instruction.replace(/<[^>]*>?/gm, '')}
                                 </Text>
                                 <Text style={styles.stepSubText}>
-                                    距离: {step.distance}, 时间: {step.duration}
+                                    Distance: {step.distance}, Time: {step.duration}
                                 </Text>
                             </View>
                         ))}
@@ -119,21 +147,12 @@ export function RouteOptionsCard({
             <View style={styles.container}>
                 <TouchableOpacity
                     style={styles.goButton}
-                    onPress={async () => {
-                        setIsRouteVisible(true);
-                        let fetchedRouteData = routeData;
-                        if (!routeData) {
-                            console.log('1Fetching route...');
-                            fetchedRouteData = await fetchRoute();
-                            console.log('2Route fetched:', fetchedRouteData);
-                        }
-                        onMoveCamera(origin);
-                        onStartNavigation(fetchedRouteData?.steps || []);
-                        console.log('Route steps for navigation:', fetchedRouteData?.steps);
-                        onClose();
-                    }}
+                    onPress={isNavigating ? handleExitNavigation : handleGoButtonPress} // Toggle between Go and Exit
                 >
-                    <FontAwesome5 name="walking" size={30} color="white" />
+                    <Text style={{ color: 'white' }}>
+                        {isNavigating ? 'Exit' : 'Go'}
+                    </Text>
+                    {/* <FontAwesome5 name="walking" size={30} color="white" /> */}
                 </TouchableOpacity>
 
                 <TouchableOpacity

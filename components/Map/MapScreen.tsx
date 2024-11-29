@@ -10,6 +10,7 @@ import CurrentLocationButton from './CurrentLocationButton';
 import HomeScreenBottom from './HomeScreenBottom';
 import NavigationCard from './NavigationCard'; // 引入新的导航卡片组件
 import ENV from '../../map_env';
+
 export function MapScreen() {
     const mapRef = useRef<MapView>(null);
     const [region, setRegion] = useState<Region | null>(null);
@@ -21,6 +22,14 @@ export function MapScreen() {
     const [isNavigating, setIsNavigating] = useState(false);
     const [currentInstruction, setCurrentInstruction] = useState<string>(''); // 当前步骤指令
 
+    const searchBarRef = useRef<{ clear: () => void } | null>(null);
+
+    const clearSearch = () => {
+        if (searchBarRef.current) {
+            searchBarRef.current.clear();  // 调用 SearchBar 中的 clear 方法
+        }
+    };
+
     useEffect(() => {
         fetchCurrentLocation();
     }, []);
@@ -28,6 +37,7 @@ export function MapScreen() {
     // 实时跟踪用户位置
     useEffect(() => {
         let locationSubscription: Location.LocationSubscription | null = null;
+        console.log('isNavigating1:', isNavigating); // 调试日志
         if (isNavigating) {
             const startTracking = async () => {
                 locationSubscription = await Location.watchPositionAsync(
@@ -39,6 +49,7 @@ export function MapScreen() {
                         // 更新已走过的路线
                         setTraveledCoords((prev) => [...prev, { latitude, longitude }]);
 
+                        console.log('Checking turn...'); // 调试日志
                         // 检查是否接近转弯点
                         checkTurn({ latitude, longitude });
                     }
@@ -116,7 +127,7 @@ export function MapScreen() {
                 // 如果下一步存在，根据 maneuver 执行
                 if (nextStep) {
                     let instruction = '';
-
+                    const rawInstruction = nextStep.html_instructions.replace(/<[^>]+>/g, '');
                     // 根据 maneuver 来判断操作
                     if (nextStep.maneuver && (nextStep.maneuver.includes('left') || nextStep.maneuver.includes('right'))) {
                         if (nextStep.maneuver.includes('left')) {
@@ -128,7 +139,6 @@ export function MapScreen() {
                         }
                     } else {
                         // 如果 maneuver 为 null 或者没有方向，解析 instruction 内容来决定动作
-                        const rawInstruction = nextStep.html_instructions.replace(/<[^>]+>/g, '');
                         if (rawInstruction.includes('Turn left')) {
                             instruction = 'Turn left';
                         } else if (rawInstruction.includes('Turn right')) {
@@ -137,8 +147,8 @@ export function MapScreen() {
                             instruction = 'Go straight';
                         }
                     }
-
-                    setCurrentInstruction(instruction); // 更新当前步骤指令
+                    console.log('Instruction:', instruction); // 调试日志
+                    setCurrentInstruction(rawInstruction); // 更新当前步骤指令
                     setCurrentStepIndex((prev) => prev + 1); // 进入下一步
                 }
             }
@@ -151,7 +161,7 @@ export function MapScreen() {
                 const instruction = currentStep.html_instructions.replace(/<[^>]+>/g, '');
                 setCurrentInstruction(instruction); // 更新当前步骤指令
                 Alert.alert('Navigation Completed', 'You have reached your destination.');
-                setIsNavigating(false);
+                handleExitNavigation();
             }
         }
     };
@@ -225,6 +235,18 @@ export function MapScreen() {
         if (destination) updateRegion(destination.latitude, destination.longitude); // 更新地图视角
     };
 
+    const handleExitNavigation = () => {
+        setDestination(null);
+        setIsNavigating(false);
+        setSteps([]);
+        setCurrentStepIndex(0);
+        setTraveledCoords([]);
+        setRouteCoords([]);
+        setCurrentInstruction('');
+        clearSearch();
+        handleMoveCamera({ latitude: region!.latitude, longitude: region!.longitude });
+    };
+
     return (
         <View style={styles.container}>
             {region && (
@@ -241,6 +263,7 @@ export function MapScreen() {
 
 
             <SearchBar
+                ref={searchBarRef}
                 onSelectDestination={(place) => {
                     if (place === null) {
                         setRouteCoords([]);
@@ -267,6 +290,7 @@ export function MapScreen() {
                     }}
                     onMoveCamera={handleMoveCamera}
                     onStartNavigation={onStartNavigation}
+                    onExitNavigation={handleExitNavigation}
                 />
             )}
             <CurrentLocationButton onPress={fetchCurrentLocation} />

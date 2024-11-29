@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import {
     View,
     TextInput,
@@ -13,20 +13,29 @@ import { FontAwesome } from "@expo/vector-icons";
 import axios from "axios";
 import debounce from "lodash/debounce";
 import * as Location from "expo-location";
+import { GOOGLE_PLACES_API_KEY } from '@env';
 
 interface SearchBarProps {
     onSelectDestination: (place: { placeId: string; description: string } | null) => void;
 }
 
-const GOOGLE_PLACES_API_KEY = "AIzaSyCJ50N--3-fHY0bkIMwrE0hIXYP8qNq2wE";
 
-export function SearchBar({ onSelectDestination }: SearchBarProps) {
+export const SearchBar = forwardRef(({ onSelectDestination }: SearchBarProps, ref) => {
     const [query, setQuery] = useState<string>("");
     const [suggestions, setSuggestions] = useState<Array<any>>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [isFocused, setIsFocused] = useState<boolean>(false);
     const inputRef = useRef<TextInput>(null);
+
+    useImperativeHandle(ref, () => ({
+        clear: () => {
+            setQuery("");
+            setSuggestions([]);
+            onSelectDestination(null);  // 清除目的地
+        }
+    }));
+
 
     const fetchCurrentLocation = async () => {
         try {
@@ -100,10 +109,10 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
         Keyboard.dismiss(); // 收起键盘
     };
 
-    const clearAll = () => {
+    const handleClear = () => {
         setQuery("");
         setSuggestions([]);
-        onSelectDestination(null); // 回调清除状态到初始状态
+        onSelectDestination(null); // 清除目的地
     };
 
     return (
@@ -135,7 +144,7 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
                 />
                 {/* 清除按钮仅在聚焦且有输入时显示 */}
                 {isFocused && query.length > 0 && (
-                    <TouchableOpacity onPress={clearAll}>
+                    <TouchableOpacity onPress={handleClear}>
                         <FontAwesome name="times-circle" size={20} color="gray" style={styles.clearIcon} />
                     </TouchableOpacity>
                 )}
@@ -175,7 +184,7 @@ export function SearchBar({ onSelectDestination }: SearchBarProps) {
             />
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
