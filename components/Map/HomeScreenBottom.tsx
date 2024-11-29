@@ -1,58 +1,65 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
-import * as Location from 'expo-location';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import axios from 'axios';
+import { GOOGLE_PLACES_API_KEY } from '@env';
 
-const HomeScreenBottom: React.FC = () => {
+interface HomeScreenBottomProps {
+    locationCoords: { latitude: number; longitude: number } | null;
+}
+
+export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
     const [locationName, setLocationName] = useState<string | null>(null);
-    const [hasFetchedLocation, setHasFetchedLocation] = useState(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!hasFetchedLocation) {
-            (async () => {
-                try {
-                    // Request location permission
-                    const { status } = await Location.requestForegroundPermissionsAsync();
-                    if (status !== 'granted') {
-                        Alert.alert('Location Permission Denied', 'The app needs location permission to display the current location.');
-                        return;
-                    }
+        const fetchLocationName = async () => {
+            if (!locationCoords) {
+                setLocationName(null);
+                return;
+            }
 
-                    // Get the current location
-                    const currentLocation = await Location.getCurrentPositionAsync({});
-                    const { latitude, longitude } = currentLocation.coords;
-
-                    // Get location name by reverse geocoding
-                    const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-                    if (geocode.length > 0) {
-                        const place = geocode[0];
-                        setLocationName(`${place.city || place.region}, ${place.country}`);
-                    } else {
-                        Alert.alert('Unable to Get Location Name', 'Reverse geocoding did not return any results.');
+            try {
+                setIsLoading(true);
+                const response = await axios.get(
+                    `https://maps.googleapis.com/maps/api/geocode/json`,
+                    {
+                        params: {
+                            latlng: `${locationCoords.latitude},${locationCoords.longitude}`,
+                            key: GOOGLE_PLACES_API_KEY,
+                        },
                     }
-                } catch (error) {
-                    console.error("Error fetching location or place name:", error);
-                    Alert.alert('Location Error', 'An error occurred while fetching location information. Please try again later.');
-                } finally {
-                    setHasFetchedLocation(true); // Mark as fetched to avoid multiple requests
+                );
+                const results = response.data.results;
+                if (results && results.length > 0) {
+                    setLocationName(results[0].formatted_address);
+                } else {
+                    setLocationName('Unknown Location');
                 }
-            })();
-        }
-    }, [hasFetchedLocation]);
+            } catch (err) {
+                console.error('Error fetching location:', err);
+                setError('Failed to fetch location name.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLocationName();
+    }, [locationCoords]);
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Current Location</Text>
-            {locationName ? (
-                <Text style={styles.text}>{locationName}</Text>
+            <Text style={styles.title}>Your Location</Text>
+            {isLoading ? (
+                <ActivityIndicator size="small" color="#007BFF" />
+            ) : error ? (
+                <Text style={styles.errorText}>{error}</Text>
             ) : (
-                <Text style={styles.text}>Fetching location...</Text>
+                <Text style={styles.text}>{locationName || 'Loading...'}</Text>
             )}
-            <View style={styles.buttonContainer}>
-                {/* Space reserved for additional buttons */}
-            </View>
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
@@ -77,13 +84,13 @@ const styles = StyleSheet.create({
     },
     text: {
         fontSize: 16,
-        marginBottom: 5,
+        color: '#333',
+        textAlign: 'center',
     },
-    buttonContainer: {
-        marginTop: 15,
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'space-around',
+    errorText: {
+        fontSize: 14,
+        color: 'red',
+        textAlign: 'center',
     },
 });
 
