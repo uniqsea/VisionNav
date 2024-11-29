@@ -1,78 +1,28 @@
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState } from 'react';
+import React, { useImperativeHandle, forwardRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
-export default function App() {
+const CameraComponent = forwardRef(({ style }, ref) => {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const cameraRef = useRef<CameraView | null>(null);
     const [result, setResult] = useState<string | null>(null);
 
-    const createFormData = (photo: { uri: string }) => {
-        const data = new FormData();
-        data.append('file', {
-            uri: photo.uri,
-            type: 'image/jpeg',
-            name: 'photo.jpg'
-        } as any);
-        return data;
-    };
-
-    const takePicture = async () => {
-        if (cameraRef.current) {
-            console.log('satrted');
-
-            const photo = await cameraRef.current.takePictureAsync({
-                base64: true
-            });
-            try {
-                if (photo) {
-                    console.log(photo.uri);
-                    const response = await fetch(
-                        // `http://${ipAddress}:8000/predict_side_walk/`,
-                        // 'http://localhost:8000/predict_side_walk/',
-                        'http://10.192.94.190:8000/predict_side_walk/',
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'multipart/form-data'
-                            },
-                            body: createFormData(photo)
-                            // body: photo.uri
-                        }
-                    );
-                    const data = await response.json();
-                    console.log(data.result);
-                    setResult(data.result);
-                    const fileInfo = await FileSystem.getInfoAsync(photo.uri);
-                    if (fileInfo.exists) {
-                        await FileSystem.deleteAsync(photo.uri);
-                        console.log('Photo deleted:', photo.uri);
-                    } else {
-                        console.log('File does not exist:', photo.uri);
-                    }
-                } else {
-                    console.log('No photo');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-    };
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            takePicture();
-        }, 4 * 1000);
-        return () => clearInterval(interval);
-    }, []);
+    useImperativeHandle(ref, () => ({
+        takePictureAsync: async (options) => {
+          if (cameraRef.current) {
+            return await cameraRef.current.takePictureAsync(options);
+          }
+          return null;
+        },
+      }));
 
     if (!permission) {
         // Camera permissions are still loading.
         return <View />;
     }
-
     if (!permission.granted) {
         // Camera permissions are not granted yet.
         return (
@@ -83,10 +33,6 @@ export default function App() {
                 <Button onPress={requestPermission} title="grant permission" />
             </View>
         );
-    }
-
-    function toggleCameraFacing() {
-        setFacing(current => (current === 'back' ? 'front' : 'back'));
     }
 
     return (
@@ -108,7 +54,7 @@ export default function App() {
             </CameraView>
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -152,3 +98,4 @@ const styles = StyleSheet.create({
         color: 'white'
     }
 });
+export default CameraComponent;
