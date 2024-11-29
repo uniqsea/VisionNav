@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import axios from 'axios';
-import { GOOGLE_PLACES_API_KEY } from '@env';
-
+import ENV from '../../map_env';
 interface HomeScreenBottomProps {
     locationCoords: { latitude: number; longitude: number } | null;
 }
@@ -11,7 +10,7 @@ export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
     const [locationName, setLocationName] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-
+    console.log(ENV.GOOGLE_PLACES_API_KEY);
     useEffect(() => {
         const fetchLocationName = async () => {
             if (!locationCoords) {
@@ -26,7 +25,7 @@ export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
                     {
                         params: {
                             latlng: `${locationCoords.latitude},${locationCoords.longitude}`,
-                            key: GOOGLE_PLACES_API_KEY,
+                            key: ENV.GOOGLE_PLACES_API_KEY,
                         },
                     }
                 );

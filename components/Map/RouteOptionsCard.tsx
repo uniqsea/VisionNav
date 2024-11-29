@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import axios from 'axios';
-import { GOOGLE_DIRECTIONS_API_KEY } from '@env';
 import polyline from 'polyline';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import ENV from '../../map_env';
 
 interface RouteOptionsCardProps {
     onClose: () => void;
@@ -38,7 +38,7 @@ export function RouteOptionsCard({
         try {
             console.log('Start Fetching...');
             const response = await axios.get(
-                `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=walking&key=${GOOGLE_DIRECTIONS_API_KEY}`
+                `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=walking&key=${ENV.GOOGLE_DIRECTIONS_API_KEY}`
             );
             console.log('Fetching...');
             if (response.data.routes.length) {

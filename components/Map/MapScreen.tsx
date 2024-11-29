@@ -8,9 +8,8 @@ import SearchBar from './SearchBar';
 import RouteOptionsCard from './RouteOptionsCard';
 import CurrentLocationButton from './CurrentLocationButton';
 import HomeScreenBottom from './HomeScreenBottom';
-import { GOOGLE_PLACES_API_KEY } from '@env';
 import NavigationCard from './NavigationCard'; // 引入新的导航卡片组件
-
+import ENV from '../../map_env';
 export function MapScreen() {
     const mapRef = useRef<MapView>(null);
     const [region, setRegion] = useState<Region | null>(null);
@@ -182,7 +181,7 @@ export function MapScreen() {
                 {
                     params: {
                         place_id: place.placeId,
-                        key: GOOGLE_PLACES_API_KEY,
+                        key: ENV.GOOGLE_PLACES_API_KEY,
                     },
                 }
             );
