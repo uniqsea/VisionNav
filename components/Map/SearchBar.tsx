@@ -13,7 +13,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import axios from "axios";
 import debounce from "lodash/debounce";
 import * as Location from "expo-location";
-import { GOOGLE_PLACES_API_KEY } from '@env';
+import ENV from '../../map_env';
 
 interface SearchBarProps {
     onSelectDestination: (place: { placeId: string; description: string } | null) => void;
@@ -85,7 +85,7 @@ export const SearchBar = forwardRef(({ onSelectDestination }: SearchBarProps, re
                 {
                     headers: {
                         "Content-Type": "application/json",
-                        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+                        "X-Goog-Api-Key": ENV.GOOGLE_PLACES_API_KEY,
                     },
                 }
             );

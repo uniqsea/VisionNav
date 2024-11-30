@@ -34,34 +34,60 @@ export function MapScreen() {
         fetchCurrentLocation();
     }, []);
 
-    // 实时跟踪用户位置
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
+    
     useEffect(() => {
         let locationSubscription: Location.LocationSubscription | null = null;
+        let timer: NodeJS.Timeout | null = null;
+    
         console.log('isNavigating1:', isNavigating); // 调试日志
+    
         if (isNavigating) {
-            const startTracking = async () => {
-                locationSubscription = await Location.watchPositionAsync(
-                    { accuracy: Location.Accuracy.High, distanceInterval: 1 },
-                    (location) => {
-                        const { latitude, longitude } = location.coords;
-                        updateRegion(latitude, longitude);
-
-                        // 更新已走过的路线
-                        setTraveledCoords((prev) => [...prev, { latitude, longitude }]);
-
-                        console.log('Checking turn...'); // 调试日志
-                        // 检查是否接近转弯点
-                        checkTurn({ latitude, longitude });
-                    }
-                );
-            };
-            startTracking();
+          const startTracking = async () => {
+            // 开始位置追踪
+            locationSubscription = await Location.watchPositionAsync(
+              { accuracy: Location.Accuracy.High, distanceInterval: 1 },
+              (location) => {
+                const { latitude: locLat, longitude: locLng } = location.coords;
+                updateRegion(locLat, locLng);
+    
+                // 更新已走过的路线
+                setTraveledCoords((prev) => [...prev, { latitude: locLat, longitude: locLng }]);
+    
+                // 更新当前位置
+                setLatitude(locLat);
+                setLongitude(locLng);
+              }
+            );
+    
+            // 每隔一秒获取当前位置，更新状态
+            timer = setInterval(async () => {
+              try {
+                const location = await Location.getCurrentPositionAsync({});
+                const { latitude: locLat, longitude: locLng } = location.coords;
+                console.log('Current location:', locLat, locLng); // 调试日志
+                setLatitude(locLat);
+                setLongitude(locLng);
+              } catch (error) {
+                console.error('Error getting location:', error);
+              }
+            }, 1000);
+          };
+          startTracking();
         }
+    
         return () => {
-            if (locationSubscription) locationSubscription.remove();
+          if (locationSubscription) locationSubscription.remove();
+          if (timer) clearInterval(timer);
         };
-    }, [isNavigating, currentStepIndex, steps]);
+      }, [isNavigating]);
 
+      useEffect(() => {
+        if (latitude !== null && longitude !== null) {
+          checkTurn({ latitude, longitude });
+        }
+      }, [latitude, longitude]);
     const fetchCurrentLocation = async () => {
         const location = await fetchLocationCoords();
         if (location) {
@@ -110,6 +136,7 @@ export function MapScreen() {
     };
 
     const checkTurn = (currentCoords: { latitude: number; longitude: number }) => {
+        console.log('checkTurn called with currentCoords:', currentCoords); // 调试日志
         // 确保 steps 不为空且 currentStepIndex 是有效的
         if (steps.length === 0) {
             console.log('No steps available for navigation.');
@@ -127,7 +154,8 @@ export function MapScreen() {
                 // 如果下一步存在，根据 maneuver 执行
                 if (nextStep) {
                     let instruction = '';
-                    const rawInstruction = nextStep.html_instructions.replace(/<[^>]+>/g, '');
+                    const rawInstruction = nextStep.instruction.replace(/<[^>]+>/g, '');
+                    console.log('Raw Instruction:', rawInstruction); // 调试日志
                     // 根据 maneuver 来判断操作
                     if (nextStep.maneuver && (nextStep.maneuver.includes('left') || nextStep.maneuver.includes('right'))) {
                         if (nextStep.maneuver.includes('left')) {
@@ -158,7 +186,7 @@ export function MapScreen() {
             const { lat: latitude, lng: longitude } = currentStep.end_location;
             const distance = calculateDistance(currentCoords, { latitude, longitude });
             if (distance <= 10) {
-                const instruction = currentStep.html_instructions.replace(/<[^>]+>/g, '');
+                const instruction = currentStep.instruction.replace(/<[^>]+>/g, '');
                 setCurrentInstruction(instruction); // 更新当前步骤指令
                 Alert.alert('Navigation Completed', 'You have reached your destination.');
                 handleExitNavigation();

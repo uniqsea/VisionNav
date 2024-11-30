@@ -10,7 +10,6 @@ export function HomeScreenBottom({ locationCoords }: HomeScreenBottomProps) {
     const [locationName, setLocationName] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    console.log(ENV.GOOGLE_PLACES_API_KEY);
     useEffect(() => {
         const fetchLocationName = async () => {
             if (!locationCoords) {
