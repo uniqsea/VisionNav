@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import ENV from '../../map_env';
+
 interface HomeScreenBottomProps {
     locationCoords: { latitude: number; longitude: number } | null;
 }
