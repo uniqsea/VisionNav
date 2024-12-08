@@ -12,6 +12,7 @@ import HomeScreenBottom from './HomeScreenBottom';
 import NavigationCard from './NavigationCard'; // 引入新的导航卡片组件
 import ENV from '../../map_env';
 import { getDistance } from 'geolib';
+import { set } from 'lodash';
 
 
 export function MapScreen() {
@@ -25,18 +26,24 @@ export function MapScreen() {
     const [isNavigating, setIsNavigating] = useState(false);
     const [currentInstruction, setCurrentInstruction] = useState<string>(''); // 当前步骤指令
     const [currentHtmlInstruction, setCurrentHtmlInstruction] = useState<string>(''); // 当前步骤指令（HTML 格式）
-
     const searchBarRef = useRef<{ clear: () => void } | null>(null);
+    const routeOptionsCardRef = useRef<{ handleCompleteNavigation: () => void } | null>(null);
 
     const clearSearch = () => {
+        console.log('Search clearing...'); // 调试日志
         if (searchBarRef.current) {
+            console.log('Search clearing1...'); // 调试日志
             searchBarRef.current.clear();  // 调用 SearchBar 中的 clear 方法
+            console.log('Search clearing2...'); // 调试日志
         }
     };
 
     useEffect(() => {
         fetchCurrentLocation();
     }, []);
+    useEffect(() => {
+        console.log('Destination updated:', destination);
+    }, [destination]);
 
     const [latitude, setLatitude] = useState<number | null>(null);
     const [longitude, setLongitude] = useState<number | null>(null);
@@ -222,8 +229,8 @@ export function MapScreen() {
                 console.log('Instruction:', instruction); // 调试日志
                 sendtrunRequest('left');
                 sendtrunRequest('right');
-                Alert.alert('Navigation Completed', 'You have reached your destination.');
                 handleExitNavigation();
+                Alert.alert('Navigation Completed', 'You have reached your destination.');
             }
         }
     };
@@ -304,19 +311,32 @@ export function MapScreen() {
         if (destination) updateRegion(destination.latitude, destination.longitude); // 更新地图视角
     };
 
-    const handleExitNavigation = () => {
-        setDestination(null);
+    function handleExitNavigation() {
+        console.log('Exiting navigation...'); // 调试日志
         setIsNavigating(false);
+        console.log('isNavigating:', isNavigating); // 调试日志
         setSteps([]);
         setCurrentStepIndex(0);
-        setTraveledCoords([]);
         setRouteCoords([]);
         setCurrentInstruction('');
         setCurrentHtmlInstruction('');
+        setTraveledCoords([]);
+        setDestination(null);
+        console.log('Destination:', destination); // 调试日志
         clearSearch();
+        console.log('Search cleared.'); // 调试日志
         fetchCurrentLocation();
-        handleMoveCamera({ latitude: region!.latitude, longitude: region!.longitude });
-    };
+        console.log('1');
+        if (region) {
+            handleMoveCamera({ latitude: region.latitude, longitude: region.longitude });
+        }
+        if (routeOptionsCardRef.current) {
+            console.log('2');
+            routeOptionsCardRef.current.handleCompleteNavigation();
+        }
+        console.log('3');
+    }
+
 
     return (
         <View style={styles.container}>
@@ -327,10 +347,12 @@ export function MapScreen() {
                     region={region}
                     showsUserLocation={true}
                 >
-                    {destination && <Marker coordinate={destination} title="Destination">
+                    {/* {destination && */}
+                    <Marker coordinate={destination || { latitude: 0, longitude: 0 }} title="Destination">
                         <FontAwesome name="map-marker" size={39} color="#F12C30" />
                         {/* <Fontisto name="map-marker-alt" size={36} color="red" /> */}
-                    </Marker>}
+                    </Marker>
+                    {/* } */}
                     <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="rgb(0, 128, 255)" />
                 </MapView>
             )}

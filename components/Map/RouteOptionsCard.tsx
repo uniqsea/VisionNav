@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import {
     View,
     Text,
@@ -24,7 +24,7 @@ interface RouteOptionsCardProps {
     onExitNavigation: () => void;
 }
 
-export function RouteOptionsCard({
+export const RouteOptionsCard = forwardRef(({
     onClose,
     origin,
     destination,
@@ -32,7 +32,7 @@ export function RouteOptionsCard({
     onMoveCamera,
     onStartNavigation,
     onExitNavigation,
-}: RouteOptionsCardProps) {
+}: RouteOptionsCardProps, ref) => {
     const [routeData, setRouteData] = useState<{
         coords: Array<{ latitude: number; longitude: number }>;
         steps: Array<any>;
@@ -126,6 +126,14 @@ export function RouteOptionsCard({
         onClose();
     };
 
+    useImperativeHandle(ref, () => ({
+        handleCompleteNavigation: () => {
+            setIsNavigating(false);
+            onExitNavigation();
+            onClose();
+            console.log('Navigation completed');
+        }
+    }));
     return (
         <>
             {isStepsVisible && routeData && (
@@ -181,7 +189,7 @@ export function RouteOptionsCard({
             </View>
         </>
     );
-}
+})
 
 const styles = StyleSheet.create({
     container: {
