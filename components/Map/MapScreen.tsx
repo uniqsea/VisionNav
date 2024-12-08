@@ -4,7 +4,6 @@ import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import Fontisto from '@expo/vector-icons/Fontisto';
 import SearchBar from './SearchBar';
 import RouteOptionsCard from './RouteOptionsCard';
 import CurrentLocationButton from './CurrentLocationButton';
@@ -146,7 +145,7 @@ export function MapScreen() {
         updateRegion(coords.latitude, coords.longitude);
     };
 
-    const sendtrunRequest = async (instruction: string) => {
+    const sendtrunRequest = async (instruction: string, frequency: number, duty: number, duration: number) => {
         try {
             const response = await fetch('http://10.192.94.60:8003/publish/', {
                 method: 'POST',
@@ -154,9 +153,9 @@ export function MapScreen() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    freq: 50,
-                    duty: 80,
-                    duration: 1200,
+                    freq: frequency,
+                    duty: duty,
+                    duration: duration,
                     topic: 'IvyVine/' + instruction,
                 }),
             });
@@ -210,7 +209,7 @@ export function MapScreen() {
                     }
                     console.log('Instruction:', instruction); // 调试日志
                     if (instruction === 'left' || instruction === 'right') {
-                        sendtrunRequest(instruction);
+                        sendtrunRequest(instruction, 50, 80, 1200);
                     }
                     setCurrentInstruction(rawInstruction); // 更新当前步骤指令
                     setCurrentHtmlInstruction(html_instruction); // 更新当前步骤指令（HTML 格式）
@@ -227,8 +226,8 @@ export function MapScreen() {
                 setCurrentInstruction(instruction); // 更新当前步骤指令
                 setCurrentHtmlInstruction(currentStep.instruction); // 更新当前步骤指令（HTML 格式）
                 console.log('Instruction:', instruction); // 调试日志
-                sendtrunRequest('left');
-                sendtrunRequest('right');
+                sendtrunRequest('left', 10, 80, 600);
+                sendtrunRequest('right', 10, 80, 600);
                 handleExitNavigation();
                 Alert.alert('Navigation Completed', 'You have reached your destination.');
             }
