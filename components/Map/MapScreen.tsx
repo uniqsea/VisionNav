@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Text } from 'react-native';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
-
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Fontisto from '@expo/vector-icons/Fontisto';
 import SearchBar from './SearchBar';
 import RouteOptionsCard from './RouteOptionsCard';
 import CurrentLocationButton from './CurrentLocationButton';
 import HomeScreenBottom from './HomeScreenBottom';
 import NavigationCard from './NavigationCard'; // 引入新的导航卡片组件
 import ENV from '../../map_env';
+import { getDistance } from 'geolib';
+
 
 export function MapScreen() {
     const mapRef = useRef<MapView>(null);
@@ -21,6 +24,7 @@ export function MapScreen() {
     const [steps, setSteps] = useState<any[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
     const [currentInstruction, setCurrentInstruction] = useState<string>(''); // 当前步骤指令
+    const [currentHtmlInstruction, setCurrentHtmlInstruction] = useState<string>(''); // 当前步骤指令（HTML 格式）
 
     const searchBarRef = useRef<{ clear: () => void } | null>(null);
 
@@ -36,58 +40,58 @@ export function MapScreen() {
 
     const [latitude, setLatitude] = useState<number | null>(null);
     const [longitude, setLongitude] = useState<number | null>(null);
-    
+
     useEffect(() => {
         let locationSubscription: Location.LocationSubscription | null = null;
         let timer: NodeJS.Timeout | null = null;
-    
-        console.log('isNavigating1:', isNavigating); // 调试日志
-    
-        if (isNavigating) {
-          const startTracking = async () => {
-            // 开始位置追踪
-            locationSubscription = await Location.watchPositionAsync(
-              { accuracy: Location.Accuracy.High, distanceInterval: 1 },
-              (location) => {
-                const { latitude: locLat, longitude: locLng } = location.coords;
-                updateRegion(locLat, locLng);
-    
-                // 更新已走过的路线
-                setTraveledCoords((prev) => [...prev, { latitude: locLat, longitude: locLng }]);
-    
-                // 更新当前位置
-                setLatitude(locLat);
-                setLongitude(locLng);
-              }
-            );
-    
-            // 每隔一秒获取当前位置，更新状态
-            timer = setInterval(async () => {
-              try {
-                const location = await Location.getCurrentPositionAsync({});
-                const { latitude: locLat, longitude: locLng } = location.coords;
-                console.log('Current location:', locLat, locLng); // 调试日志
-                setLatitude(locLat);
-                setLongitude(locLng);
-              } catch (error) {
-                console.error('Error getting location:', error);
-              }
-            }, 1000);
-          };
-          startTracking();
-        }
-    
-        return () => {
-          if (locationSubscription) locationSubscription.remove();
-          if (timer) clearInterval(timer);
-        };
-      }, [isNavigating]);
 
-      useEffect(() => {
-        if (latitude !== null && longitude !== null) {
-          checkTurn({ latitude, longitude });
+        console.log('isNavigating1:', isNavigating); // 调试日志
+
+        if (isNavigating) {
+            const startTracking = async () => {
+                // 开始位置追踪
+                locationSubscription = await Location.watchPositionAsync(
+                    { accuracy: Location.Accuracy.High, distanceInterval: 1 },
+                    (location) => {
+                        const { latitude: locLat, longitude: locLng } = location.coords;
+                        updateRegion(locLat, locLng);
+
+                        // 更新已走过的路线
+                        setTraveledCoords((prev) => [...prev, { latitude: locLat, longitude: locLng }]);
+
+                        // 更新当前位置
+                        setLatitude(locLat);
+                        setLongitude(locLng);
+                    }
+                );
+
+                // 每隔一秒获取当前位置，更新状态
+                timer = setInterval(async () => {
+                    try {
+                        const location = await Location.getCurrentPositionAsync({});
+                        const { latitude: locLat, longitude: locLng } = location.coords;
+                        console.log('Current location:', locLat, locLng); // 调试日志
+                        setLatitude(locLat);
+                        setLongitude(locLng);
+                    } catch (error) {
+                        console.error('Error getting location:', error);
+                    }
+                }, 1000);
+            };
+            startTracking();
         }
-      }, [latitude, longitude]);
+
+        return () => {
+            if (locationSubscription) locationSubscription.remove();
+            if (timer) clearInterval(timer);
+        };
+    }, [isNavigating]);
+
+    useEffect(() => {
+        if (latitude !== null && longitude !== null) {
+            checkTurn({ latitude, longitude });
+        }
+    }, [latitude, longitude]);
     const fetchCurrentLocation = async () => {
         const location = await fetchLocationCoords();
         if (location) {
@@ -135,6 +139,27 @@ export function MapScreen() {
         updateRegion(coords.latitude, coords.longitude);
     };
 
+    const sendtrunRequest = async (instruction: string) => {
+        try {
+            const response = await fetch('http://10.192.94.60:8003/publish/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    freq: 50,
+                    duty: 80,
+                    duration: 1200,
+                    topic: 'IvyVine/' + instruction,
+                }),
+            });
+            const data = await response.json();
+            console.log('API Response:', data);
+        } catch (error) {
+            console.error('Error sending API request:', error);
+        }
+    };
+
     const checkTurn = (currentCoords: { latitude: number; longitude: number }) => {
         console.log('checkTurn called with currentCoords:', currentCoords); // 调试日志
         // 确保 steps 不为空且 currentStepIndex 是有效的
@@ -155,28 +180,33 @@ export function MapScreen() {
                 if (nextStep) {
                     let instruction = '';
                     const rawInstruction = nextStep.instruction.replace(/<[^>]+>/g, '');
+                    const html_instruction = nextStep.instruction;
                     console.log('Raw Instruction:', rawInstruction); // 调试日志
                     // 根据 maneuver 来判断操作
                     if (nextStep.maneuver && (nextStep.maneuver.includes('left') || nextStep.maneuver.includes('right'))) {
                         if (nextStep.maneuver.includes('left')) {
-                            instruction = 'Turn left';
+                            instruction = 'left';
                         } else if (nextStep.maneuver.includes('right')) {
-                            instruction = 'Turn right';
+                            instruction = 'right';
                         } else {
-                            instruction = 'Go straight';
+                            instruction = 'straight';
                         }
                     } else {
                         // 如果 maneuver 为 null 或者没有方向，解析 instruction 内容来决定动作
                         if (rawInstruction.includes('Turn left')) {
-                            instruction = 'Turn left';
+                            instruction = 'left';
                         } else if (rawInstruction.includes('Turn right')) {
-                            instruction = 'Turn right';
+                            instruction = 'right';
                         } else {
-                            instruction = 'Go straight';
+                            instruction = 'straight';
                         }
                     }
                     console.log('Instruction:', instruction); // 调试日志
+                    if (instruction === 'left' || instruction === 'right') {
+                        sendtrunRequest(instruction);
+                    }
                     setCurrentInstruction(rawInstruction); // 更新当前步骤指令
+                    setCurrentHtmlInstruction(html_instruction); // 更新当前步骤指令（HTML 格式）
                     setCurrentStepIndex((prev) => prev + 1); // 进入下一步
                 }
             }
@@ -188,28 +218,38 @@ export function MapScreen() {
             if (distance <= 10) {
                 const instruction = currentStep.instruction.replace(/<[^>]+>/g, '');
                 setCurrentInstruction(instruction); // 更新当前步骤指令
+                setCurrentHtmlInstruction(currentStep.instruction); // 更新当前步骤指令（HTML 格式）
+                console.log('Instruction:', instruction); // 调试日志
+                sendtrunRequest('left');
+                sendtrunRequest('right');
                 Alert.alert('Navigation Completed', 'You have reached your destination.');
                 handleExitNavigation();
             }
         }
     };
 
+    // const calculateDistance = (
+    //     coord1: { latitude: number; longitude: number },
+    //     coord2: { latitude: number; longitude: number }
+    // ) => {
+    //     const R = 6371e3; // 地球半径，单位：米
+    //     const φ1 = (coord1.latitude * Math.PI) / 180;
+    //     const φ2 = (coord2.latitude * Math.PI) / 180;
+    //     const Δφ = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
+    //     const Δλ = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
+
+    //     const a =
+    //         Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    //         Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    //     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    //     return R * c; // 距离，单位：米
+    // };
     const calculateDistance = (
         coord1: { latitude: number; longitude: number },
         coord2: { latitude: number; longitude: number }
-    ) => {
-        const R = 6371e3; // 地球半径，单位：米
-        const φ1 = (coord1.latitude * Math.PI) / 180;
-        const φ2 = (coord2.latitude * Math.PI) / 180;
-        const Δφ = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
-        const Δλ = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
-
-        const a =
-            Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c; // 距离，单位：米
+    ): number => {
+        return getDistance(coord1, coord2); // 返回两点间的距离，单位：米
     };
 
     const handleDestinationSelect = async (place: { placeId: string; description: string }) => {
@@ -257,6 +297,7 @@ export function MapScreen() {
         console.log('currentInstruction1:', currentInstruction_info); // 调试日志
         setCurrentInstruction(currentInstruction_info || ''); // 初始化第一步
         console.log('currentInstruction2:', currentInstruction); // 调试日志
+        setCurrentHtmlInstruction(stepsData[0].instruction || ''); // 初始化第一步（HTML 格式）
         setIsNavigating(true);
         console.log('isNavigating:', isNavigating);
 
@@ -271,7 +312,9 @@ export function MapScreen() {
         setTraveledCoords([]);
         setRouteCoords([]);
         setCurrentInstruction('');
+        setCurrentHtmlInstruction('');
         clearSearch();
+        fetchCurrentLocation();
         handleMoveCamera({ latitude: region!.latitude, longitude: region!.longitude });
     };
 
@@ -284,30 +327,35 @@ export function MapScreen() {
                     region={region}
                     showsUserLocation={true}
                 >
-                    {destination && <Marker coordinate={destination} title="Destination" />}
+                    {destination && <Marker coordinate={destination} title="Destination">
+                        <FontAwesome name="map-marker" size={39} color="#F12C30" />
+                        {/* <Fontisto name="map-marker-alt" size={36} color="red" /> */}
+                    </Marker>}
                     <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="rgb(0, 128, 255)" />
                 </MapView>
             )}
 
-
-            <SearchBar
-                ref={searchBarRef}
-                onSelectDestination={(place) => {
-                    if (place === null) {
-                        setRouteCoords([]);
-                        setTraveledCoords([]);
-                        setDestination(null);
-                    } else {
-                        handleDestinationSelect(place);
-                    }
-                }}
-            />
-
             {/* 使用 NavigationCard 组件来显示导航指令 */}
-            {isNavigating && currentInstruction && (
-                <NavigationCard instruction={currentInstruction} />
+            {isNavigating && currentHtmlInstruction && (
+                <NavigationCard instruction={currentHtmlInstruction} />
             )}
 
+            {!isNavigating && (
+                <SearchBar
+                    ref={searchBarRef}
+                    onSelectDestination={(place) => {
+                        if (place === null) {
+                            setRouteCoords([]);
+                            setTraveledCoords([]);
+                            setDestination(null);
+                        } else {
+                            handleDestinationSelect(place);
+                        }
+                    }}
+                />
+            )}
+
+            <CurrentLocationButton onPress={fetchCurrentLocation} />
             {destination && (
                 <RouteOptionsCard
                     onClose={() => setDestination(null)}
@@ -321,7 +369,7 @@ export function MapScreen() {
                     onExitNavigation={handleExitNavigation}
                 />
             )}
-            <CurrentLocationButton onPress={fetchCurrentLocation} />
+
             {!destination && region && (
                 <HomeScreenBottom locationCoords={{ latitude: region.latitude, longitude: region.longitude }} />
             )}

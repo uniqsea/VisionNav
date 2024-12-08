@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 interface CurrentLocationButtonProps {
     onPress: () => void;
@@ -9,7 +10,8 @@ interface CurrentLocationButtonProps {
 export function CurrentLocationButton({ onPress }: CurrentLocationButtonProps) {
     return (
         <TouchableOpacity style={styles.button} onPress={onPress}>
-            <FontAwesome name="location-arrow" size={26} color="rgb(0, 128, 255)" />
+            {/* <FontAwesome name="location-arrow" size={26} color="rgb(0, 128, 255)" /> */}
+            <MaterialIcons name="my-location" size={24} color="rgb(0, 128, 255)" />
         </TouchableOpacity>
     );
 }

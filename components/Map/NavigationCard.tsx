@@ -1,6 +1,7 @@
 // NavigationCard.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import RenderHtml from 'react-native-render-html';
 
 interface NavigationCardProps {
     instruction: string;
@@ -9,18 +10,20 @@ interface NavigationCardProps {
 const NavigationCard: React.FC<NavigationCardProps> = ({ instruction }) => {
     return (
         <View style={styles.navigationCard}>
-            <Text style={styles.navigationText}>{instruction}</Text>
+            {/* <Text style={styles.navigationText}>{instruction}</Text> */}
+            <RenderHtml contentWidth={300} source={{ html: instruction }} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     navigationCard: {
+        fontSize: 16,
         position: 'absolute',
-        top: 100,
+        top: 60,
         left: 20,
         right: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'white',
         borderRadius: 10,
         padding: 15,
         alignItems: 'center',
